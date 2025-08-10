@@ -184,6 +184,47 @@ function Oracle.SetTheme(themeName)
     return true
 end
 
+-- Add UI Element Functions to Section
+local function addElementFunctions(section, theme)
+    local UIElements = require(script.UIElements)
+    
+    function section.AddButton(options)
+        options = options or {}
+        options.Theme = theme
+        return UIElements.CreateButton(section, options)
+    end
+    
+    function section.AddToggle(options)
+        options = options or {}
+        options.Theme = theme
+        return UIElements.CreateToggle(section, options)
+    end
+    
+    function section.AddSlider(options)
+        options = options or {}
+        options.Theme = theme
+        return UIElements.CreateSlider(section, options)
+    end
+    
+    function section.AddInput(options)
+        options = options or {}
+        options.Theme = theme
+        return UIElements.CreateInput(section, options)
+    end
+    
+    function section.AddLabel(options)
+        options = options or {}
+        options.Theme = theme
+        return UIElements.CreateLabel(section, options)
+    end
+    
+    function section.AddDropdown(options)
+        options = options or {}
+        options.Theme = theme
+        return UIElements.CreateDropdown(section, options)
+    end
+end
+
 -- Window Creation
 function Oracle.CreateWindow(options)
     options = options or {}
@@ -399,53 +440,32 @@ function Oracle.CreateWindow(options)
             window.SelectTab(tab)
         end)
         
-        -- Hover Effects
-        tabButton.MouseEnter:Connect(function()
-            if window.CurrentTab ~= tab then
-                CreateTween(tabButton, TweenInfo.new(0.2), {BackgroundColor3 = theme.ElementHover})
-            end
-        end)
-        
-        tabButton.MouseLeave:Connect(function()
-            if window.CurrentTab ~= tab then
-                CreateTween(tabButton, TweenInfo.new(0.2), {BackgroundColor3 = theme.TabBackground})
-            end
-        end)
-        
-        table.insert(window.Tabs, tab)
-        
-        -- Select first tab automatically
-        if #window.Tabs == 1 then
-            window.SelectTab(tab)
-        end
-        
         -- Add Section Function
-        function tab.AddSection(sectionName)
+        function tab.AddSection(name)
             local section = {
-                Name = sectionName,
-                Elements = {},
+                Name = name,
                 Container = nil
             }
             
-            -- Create Section Container
+            -- Create Section Frame
             local sectionFrame = Instance.new("Frame")
-            sectionFrame.Name = sectionName .. "Section"
-            sectionFrame.Size = UDim2.new(1, 0, 0, 0)
+            sectionFrame.Name = name .. "Section"
+            sectionFrame.Size = UDim2.new(1, 0, 0, 50)
             sectionFrame.BackgroundColor3 = theme.ElementBackground
             sectionFrame.BorderSizePixel = 0
             sectionFrame.Parent = tabContent
             
             local sectionCorner = Instance.new("UICorner")
-            sectionCorner.CornerRadius = UDim.new(0, 8)
+            sectionCorner.CornerRadius = UDim.new(0, 6)
             sectionCorner.Parent = sectionFrame
             
             -- Section Title
             local sectionTitle = Instance.new("TextLabel")
             sectionTitle.Name = "SectionTitle"
-            sectionTitle.Size = UDim2.new(1, -20, 0, 30)
+            sectionTitle.Size = UDim2.new(1, -20, 0, 25)
             sectionTitle.Position = UDim2.new(0, 10, 0, 5)
             sectionTitle.BackgroundTransparency = 1
-            sectionTitle.Text = sectionName
+            sectionTitle.Text = name
             sectionTitle.TextColor3 = theme.TextColor
             sectionTitle.TextSize = 16
             sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -501,47 +521,4 @@ function Oracle.CreateWindow(options)
     return window
 end
 
-return Oracle
-
-
--- Add UI Element Functions to Section
-local function addElementFunctions(section, theme)
-    local UIElements = require(script.UIElements)
-    
-    function section.AddButton(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateButton(section, options)
-    end
-    
-    function section.AddToggle(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateToggle(section, options)
-    end
-    
-    function section.AddSlider(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateSlider(section, options)
-    end
-    
-    function section.AddInput(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateInput(section, options)
-    end
-    
-    function section.AddLabel(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateLabel(section, options)
-    end
-    
-    function section.AddDropdown(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateDropdown(section, options)
-    end
-end
-
+return Oracle 
