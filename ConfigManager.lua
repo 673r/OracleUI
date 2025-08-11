@@ -293,4 +293,3 @@ function ConfigManager.GetConfigInfo(filename)
 end
 
 return ConfigManager
-
