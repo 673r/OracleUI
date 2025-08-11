@@ -9,12 +9,12 @@
     - Modular component system
     - Easy-to-use API
     
-    FIXED: Theme nil reference issues
+    FIXED: Theme nil reference issues and syntax errors
 ]]
 
 local Oracle = {
-    Version = "1.0.0",
-    Build = "A1B2",
+    Version = "1.0.1",
+    Build = "A1B3",
     Flags = {},
     Windows = {},
     CurrentTheme = nil,
@@ -31,6 +31,9 @@ local HttpService = game:GetService("HttpService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Load UIElements module
+local UIElements = require(script.UIElements)
 
 -- Utility Functions
 local function CreateTween(object, info, properties)
@@ -271,659 +274,6 @@ function Oracle.SetTheme(themeName)
     return true
 end
 
--- UI Elements (inline to avoid module loading issues)
-local UIElements = {}
-
--- Utility function for creating tweens
-local function CreateElementTween(object, info, properties)
-    local tween = TweenService:Create(object, info, properties)
-    tween:Play()
-    return tween
-end
-
--- Button Element
-function UIElements.CreateButton(section, options)
-    options = options or {}
-    local buttonText = options.Text or "Button"
-    local callback = options.Callback or function() end
-    local theme = getValidTheme(options.Theme)
-    
-    local buttonFrame = Instance.new("TextButton")
-    buttonFrame.Name = "Button_" .. buttonText
-    buttonFrame.Size = UDim2.new(1, 0, 0, 35)
-    buttonFrame.BackgroundColor3 = options.Color or theme.AccentColor
-    buttonFrame.BorderSizePixel = 0
-    buttonFrame.Text = buttonText
-    buttonFrame.TextColor3 = Color3.fromRGB(255, 255, 255)
-    buttonFrame.TextSize = 14
-    buttonFrame.Font = Enum.Font.GothamBold
-    buttonFrame.Parent = section.Container
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = buttonFrame
-    
-    local originalColor = options.Color or theme.AccentColor
-    
-    -- Hover effects
-    buttonFrame.MouseEnter:Connect(function()
-        CreateElementTween(buttonFrame, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.new(
-                math.min(originalColor.R + 0.1, 1),
-                math.min(originalColor.G + 0.1, 1),
-                math.min(originalColor.B + 0.1, 1)
-            )
-        })
-    end)
-    
-    buttonFrame.MouseLeave:Connect(function()
-        CreateElementTween(buttonFrame, TweenInfo.new(0.2), {BackgroundColor3 = originalColor})
-    end)
-    
-    -- Click functionality
-    buttonFrame.MouseButton1Click:Connect(function()
-        CreateElementTween(buttonFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, -4, 0, 33)})
-        task.wait(0.1)
-        CreateElementTween(buttonFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, 0, 0, 35)})
-        pcall(callback)
-    end)
-    
-    return buttonFrame
-end
-
--- Toggle Element
-function UIElements.CreateToggle(section, options)
-    options = options or {}
-    local toggleText = options.Text or "Toggle"
-    local defaultValue = options.Default or false
-    local callback = options.Callback or function() end
-    local flag = options.Flag
-    local theme = getValidTheme(options.Theme)
-    
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Name = "Toggle_" .. toggleText
-    toggleFrame.Size = UDim2.new(1, 0, 0, 35)
-    toggleFrame.BackgroundColor3 = theme.ElementBackground
-    toggleFrame.BorderSizePixel = 0
-    toggleFrame.Parent = section.Container
-    
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 6)
-    toggleCorner.Parent = toggleFrame
-    
-    -- Toggle Label
-    local toggleLabel = Instance.new("TextLabel")
-    toggleLabel.Name = "ToggleLabel"
-    toggleLabel.Size = UDim2.new(1, -50, 1, 0)
-    toggleLabel.Position = UDim2.new(0, 10, 0, 0)
-    toggleLabel.BackgroundTransparency = 1
-    toggleLabel.Text = toggleText
-    toggleLabel.TextColor3 = theme.TextColor
-    toggleLabel.TextSize = 14
-    toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    toggleLabel.Font = Enum.Font.Gotham
-    toggleLabel.Parent = toggleFrame
-    
-    -- Toggle Switch
-    local toggleSwitch = Instance.new("Frame")
-    toggleSwitch.Name = "ToggleSwitch"
-    toggleSwitch.Size = UDim2.new(0, 40, 0, 20)
-    toggleSwitch.Position = UDim2.new(1, -50, 0.5, -10)
-    toggleSwitch.BackgroundColor3 = defaultValue and theme.AccentColor or Color3.fromRGB(100, 100, 100)
-    toggleSwitch.BorderSizePixel = 0
-    toggleSwitch.Parent = toggleFrame
-    
-    local switchCorner = Instance.new("UICorner")
-    switchCorner.CornerRadius = UDim.new(0, 10)
-    switchCorner.Parent = toggleSwitch
-    
-    -- Toggle Circle
-    local toggleCircle = Instance.new("Frame")
-    toggleCircle.Name = "ToggleCircle"
-    toggleCircle.Size = UDim2.new(0, 16, 0, 16)
-    toggleCircle.Position = defaultValue and UDim2.new(0, 22, 0, 2) or UDim2.new(0, 2, 0, 2)
-    toggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    toggleCircle.BorderSizePixel = 0
-    toggleCircle.Parent = toggleSwitch
-    
-    local circleCorner = Instance.new("UICorner")
-    circleCorner.CornerRadius = UDim.new(0, 8)
-    circleCorner.Parent = toggleCircle
-    
-    local currentValue = defaultValue
-    
-    -- Store flag reference
-    if flag then
-        Oracle.Flags[flag] = {
-            Value = currentValue,
-            Set = function(value)
-                currentValue = value
-                local newSwitchColor = value and theme.AccentColor or Color3.fromRGB(100, 100, 100)
-                local newCirclePos = value and UDim2.new(0, 22, 0, 2) or UDim2.new(0, 2, 0, 2)
-                
-                CreateElementTween(toggleSwitch, TweenInfo.new(0.2), {BackgroundColor3 = newSwitchColor})
-                CreateElementTween(toggleCircle, TweenInfo.new(0.2), {Position = newCirclePos})
-                
-                pcall(callback, value)
-            end
-        }
-    end
-    
-    -- Click functionality
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(1, 0, 1, 0)
-    toggleButton.BackgroundTransparency = 1
-    toggleButton.Text = ""
-    toggleButton.Parent = toggleFrame
-    
-    toggleButton.MouseButton1Click:Connect(function()
-        currentValue = not currentValue
-        
-        local newSwitchColor = currentValue and theme.AccentColor or Color3.fromRGB(100, 100, 100)
-        local newCirclePos = currentValue and UDim2.new(0, 22, 0, 2) or UDim2.new(0, 2, 0, 2)
-        
-        CreateElementTween(toggleSwitch, TweenInfo.new(0.2), {BackgroundColor3 = newSwitchColor})
-        CreateElementTween(toggleCircle, TweenInfo.new(0.2), {Position = newCirclePos})
-        
-        if flag then
-            Oracle.Flags[flag].Value = currentValue
-        end
-        
-        pcall(callback, currentValue)
-    end)
-    
-    -- Hover effects
-    toggleButton.MouseEnter:Connect(function()
-        CreateElementTween(toggleFrame, TweenInfo.new(0.2), {BackgroundColor3 = theme.ElementHover})
-    end)
-    
-    toggleButton.MouseLeave:Connect(function()
-        CreateElementTween(toggleFrame, TweenInfo.new(0.2), {BackgroundColor3 = theme.ElementBackground})
-    end)
-    
-    -- Return object with SetValue method
-    local toggleObject = {
-        Frame = toggleFrame,
-        SetValue = function(self, value)
-            if Oracle.Flags[flag] then
-                Oracle.Flags[flag].Set(value)
-            end
-        end
-    }
-    
-    return toggleObject
-end
-
--- Slider Element
-function UIElements.CreateSlider(section, options)
-    options = options or {}
-    local sliderText = options.Text or "Slider"
-    local minValue = options.Min or 0
-    local maxValue = options.Max or 100
-    local defaultValue = math.clamp(options.Default or minValue, minValue, maxValue)
-    local callback = options.Callback or function() end
-    local flag = options.Flag
-    local theme = getValidTheme(options.Theme)
-    
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Name = "Slider_" .. sliderText
-    sliderFrame.Size = UDim2.new(1, 0, 0, 50)
-    sliderFrame.BackgroundColor3 = theme.ElementBackground
-    sliderFrame.BorderSizePixel = 0
-    sliderFrame.Parent = section.Container
-    
-    local sliderCorner = Instance.new("UICorner")
-    sliderCorner.CornerRadius = UDim.new(0, 6)
-    sliderCorner.Parent = sliderFrame
-    
-    -- Slider Label
-    local sliderLabel = Instance.new("TextLabel")
-    sliderLabel.Name = "SliderLabel"
-    sliderLabel.Size = UDim2.new(1, -60, 0, 20)
-    sliderLabel.Position = UDim2.new(0, 10, 0, 5)
-    sliderLabel.BackgroundTransparency = 1
-    sliderLabel.Text = sliderText
-    sliderLabel.TextColor3 = theme.TextColor
-    sliderLabel.TextSize = 14
-    sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-    sliderLabel.Font = Enum.Font.Gotham
-    sliderLabel.Parent = sliderFrame
-    
-    -- Value Label
-    local valueLabel = Instance.new("TextLabel")
-    valueLabel.Name = "ValueLabel"
-    valueLabel.Size = UDim2.new(0, 50, 0, 20)
-    valueLabel.Position = UDim2.new(1, -60, 0, 5)
-    valueLabel.BackgroundTransparency = 1
-    valueLabel.Text = tostring(defaultValue)
-    valueLabel.TextColor3 = theme.AccentColor
-    valueLabel.TextSize = 14
-    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.Font = Enum.Font.GothamBold
-    valueLabel.Parent = sliderFrame
-    
-    -- Slider Track
-    local sliderTrack = Instance.new("Frame")
-    sliderTrack.Name = "SliderTrack"
-    sliderTrack.Size = UDim2.new(1, -20, 0, 6)
-    sliderTrack.Position = UDim2.new(0, 10, 0, 30)
-    sliderTrack.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    sliderTrack.BorderSizePixel = 0
-    sliderTrack.Parent = sliderFrame
-    
-    local trackCorner = Instance.new("UICorner")
-    trackCorner.CornerRadius = UDim.new(0, 3)
-    trackCorner.Parent = sliderTrack
-    
-    -- Slider Fill
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Name = "SliderFill"
-    sliderFill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
-    sliderFill.Position = UDim2.new(0, 0, 0, 0)
-    sliderFill.BackgroundColor3 = theme.AccentColor
-    sliderFill.BorderSizePixel = 0
-    sliderFill.Parent = sliderTrack
-    
-    local fillCorner = Instance.new("UICorner")
-    fillCorner.CornerRadius = UDim.new(0, 3)
-    fillCorner.Parent = sliderFill
-    
-    -- Slider Handle
-    local sliderHandle = Instance.new("Frame")
-    sliderHandle.Name = "SliderHandle"
-    sliderHandle.Size = UDim2.new(0, 16, 0, 16)
-    sliderHandle.Position = UDim2.new((defaultValue - minValue) / (maxValue - minValue), -8, 0, -5)
-    sliderHandle.BackgroundColor3 = theme.AccentColor
-    sliderHandle.BorderSizePixel = 0
-    sliderHandle.Parent = sliderTrack
-    
-    local handleCorner = Instance.new("UICorner")
-    handleCorner.CornerRadius = UDim.new(0, 8)
-    handleCorner.Parent = sliderHandle
-    
-    local currentValue = defaultValue
-    local dragging = false
-    
-    -- Store flag reference
-    if flag then
-        Oracle.Flags[flag] = {
-            Value = currentValue,
-            Set = function(value)
-                currentValue = math.clamp(value, minValue, maxValue)
-                local percentage = (currentValue - minValue) / (maxValue - minValue)
-                
-                CreateElementTween(sliderFill, TweenInfo.new(0.2), {Size = UDim2.new(percentage, 0, 1, 0)})
-                CreateElementTween(sliderHandle, TweenInfo.new(0.2), {Position = UDim2.new(percentage, -8, 0, -5)})
-                
-                valueLabel.Text = tostring(math.floor(currentValue))
-                pcall(callback, currentValue)
-            end
-        }
-    end
-    
-    -- Slider functionality
-    local function updateSlider(input)
-        local trackPosition = sliderTrack.AbsolutePosition.X
-        local trackSize = sliderTrack.AbsoluteSize.X
-        local mouseX = input.Position.X
-        
-        local percentage = math.clamp((mouseX - trackPosition) / trackSize, 0, 1)
-        currentValue = minValue + (percentage * (maxValue - minValue))
-        currentValue = math.floor(currentValue)
-        
-        CreateElementTween(sliderFill, TweenInfo.new(0.1), {Size = UDim2.new(percentage, 0, 1, 0)})
-        CreateElementTween(sliderHandle, TweenInfo.new(0.1), {Position = UDim2.new(percentage, -8, 0, -5)})
-        
-        valueLabel.Text = tostring(currentValue)
-        
-        if flag then
-            Oracle.Flags[flag].Value = currentValue
-        end
-        
-        pcall(callback, currentValue)
-    end
-    
-    sliderTrack.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateSlider(input)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateSlider(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    -- Return object with SetValue method
-    local sliderObject = {
-        Frame = sliderFrame,
-        SetValue = function(self, value)
-            if Oracle.Flags[flag] then
-                Oracle.Flags[flag].Set(value)
-            end
-        end
-    }
-    
-    return sliderObject
-end
-
--- Input Element
-function UIElements.CreateInput(section, options)
-    options = options or {}
-    local inputText = options.Text or "Input"
-    local placeholder = options.Placeholder or "Enter text..."
-    local defaultValue = options.Default or ""
-    local callback = options.Callback or function() end
-    local flag = options.Flag
-    local theme = getValidTheme(options.Theme)
-    
-    local inputFrame = Instance.new("Frame")
-    inputFrame.Name = "Input_" .. inputText
-    inputFrame.Size = UDim2.new(1, 0, 0, 60)
-    inputFrame.BackgroundColor3 = theme.ElementBackground
-    inputFrame.BorderSizePixel = 0
-    inputFrame.Parent = section.Container
-    
-    local inputCorner = Instance.new("UICorner")
-    inputCorner.CornerRadius = UDim.new(0, 6)
-    inputCorner.Parent = inputFrame
-    
-    -- Input Label
-    local inputLabel = Instance.new("TextLabel")
-    inputLabel.Name = "InputLabel"
-    inputLabel.Size = UDim2.new(1, -20, 0, 20)
-    inputLabel.Position = UDim2.new(0, 10, 0, 5)
-    inputLabel.BackgroundTransparency = 1
-    inputLabel.Text = inputText
-    inputLabel.TextColor3 = theme.TextColor
-    inputLabel.TextSize = 14
-    inputLabel.TextXAlignment = Enum.TextXAlignment.Left
-    inputLabel.Font = Enum.Font.Gotham
-    inputLabel.Parent = inputFrame
-    
-    -- Text Box
-    local textBox = Instance.new("TextBox")
-    textBox.Name = "TextBox"
-    textBox.Size = UDim2.new(1, -20, 0, 25)
-    textBox.Position = UDim2.new(0, 10, 0, 30)
-    textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    textBox.BorderSizePixel = 1
-    textBox.BorderColor3 = theme.BorderColor
-    textBox.Text = defaultValue
-    textBox.PlaceholderText = placeholder
-    textBox.TextColor3 = theme.TextColor
-    textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
-    textBox.TextSize = 14
-    textBox.Font = Enum.Font.Gotham
-    textBox.ClearButtonOnFocus = false
-    textBox.Parent = inputFrame
-    
-    local textBoxCorner = Instance.new("UICorner")
-    textBoxCorner.CornerRadius = UDim.new(0, 4)
-    textBoxCorner.Parent = textBox
-    
-    local currentValue = defaultValue
-    
-    -- Store flag reference
-    if flag then
-        Oracle.Flags[flag] = {
-            Value = currentValue,
-            Set = function(value)
-                currentValue = value
-                textBox.Text = value
-                pcall(callback, value)
-            end
-        }
-    end
-    
-    -- Input functionality
-    textBox.FocusLost:Connect(function(enterPressed)
-        currentValue = textBox.Text
-        
-        if flag then
-            Oracle.Flags[flag].Value = currentValue
-        end
-        
-        pcall(callback, currentValue)
-    end)
-    
-    -- Focus effects
-    textBox.Focused:Connect(function()
-        CreateElementTween(textBox, TweenInfo.new(0.2), {BorderColor3 = theme.AccentColor})
-    end)
-    
-    textBox.FocusLost:Connect(function()
-        CreateElementTween(textBox, TweenInfo.new(0.2), {BorderColor3 = theme.BorderColor})
-    end)
-    
-    -- Return object with SetValue method
-    local inputObject = {
-        Frame = inputFrame,
-        SetValue = function(self, value)
-            if Oracle.Flags[flag] then
-                Oracle.Flags[flag].Set(value)
-            end
-        end
-    }
-    
-    return inputObject
-end
-
--- Label Element
-function UIElements.CreateLabel(section, options)
-    options = options or {}
-    local labelText = options.Text or "Label"
-    local theme = getValidTheme(options.Theme)
-    
-    local labelFrame = Instance.new("Frame")
-    labelFrame.Name = "Label_" .. labelText
-    labelFrame.Size = UDim2.new(1, 0, 0, 25)
-    labelFrame.BackgroundTransparency = 1
-    labelFrame.Parent = section.Container
-    
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Size = UDim2.new(1, -20, 1, 0)
-    label.Position = UDim2.new(0, 10, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = options.Color or theme.TextColor
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Font = Enum.Font.Gotham
-    label.Parent = labelFrame
-    
-    return labelFrame
-end
-
--- Dropdown Element
-function UIElements.CreateDropdown(section, options)
-    options = options or {}
-    local dropdownText = options.Text or "Dropdown"
-    local dropdownOptions = options.Options or {"Option 1", "Option 2", "Option 3"}
-    local defaultValue = options.Default or dropdownOptions[1]
-    local callback = options.Callback or function() end
-    local flag = options.Flag
-    local theme = getValidTheme(options.Theme)
-    
-    local dropdownFrame = Instance.new("Frame")
-    dropdownFrame.Name = "Dropdown_" .. dropdownText
-    dropdownFrame.Size = UDim2.new(1, 0, 0, 60)
-    dropdownFrame.BackgroundColor3 = theme.ElementBackground
-    dropdownFrame.BorderSizePixel = 0
-    dropdownFrame.Parent = section.Container
-    
-    local dropdownCorner = Instance.new("UICorner")
-    dropdownCorner.CornerRadius = UDim.new(0, 6)
-    dropdownCorner.Parent = dropdownFrame
-    
-    -- Dropdown Label
-    local dropdownLabel = Instance.new("TextLabel")
-    dropdownLabel.Name = "DropdownLabel"
-    dropdownLabel.Size = UDim2.new(1, -20, 0, 20)
-    dropdownLabel.Position = UDim2.new(0, 10, 0, 5)
-    dropdownLabel.BackgroundTransparency = 1
-    dropdownLabel.Text = dropdownText
-    dropdownLabel.TextColor3 = theme.TextColor
-    dropdownLabel.TextSize = 14
-    dropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
-    dropdownLabel.Font = Enum.Font.Gotham
-    dropdownLabel.Parent = dropdownFrame
-    
-    -- Dropdown Button
-    local dropdownButton = Instance.new("TextButton")
-    dropdownButton.Name = "DropdownButton"
-    dropdownButton.Size = UDim2.new(1, -20, 0, 25)
-    dropdownButton.Position = UDim2.new(0, 10, 0, 30)
-    dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    dropdownButton.BorderSizePixel = 1
-    dropdownButton.BorderColor3 = theme.BorderColor
-    dropdownButton.Text = defaultValue .. " ▼"
-    dropdownButton.TextColor3 = theme.TextColor
-    dropdownButton.TextSize = 14
-    dropdownButton.Font = Enum.Font.Gotham
-    dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
-    dropdownButton.Parent = dropdownFrame
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 4)
-    buttonCorner.Parent = dropdownButton
-    
-    -- Dropdown List
-    local dropdownList = Instance.new("Frame")
-    dropdownList.Name = "DropdownList"
-    dropdownList.Size = UDim2.new(1, -20, 0, #dropdownOptions * 25)
-    dropdownList.Position = UDim2.new(0, 10, 0, 60)
-    dropdownList.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    dropdownList.BorderSizePixel = 1
-    dropdownList.BorderColor3 = theme.BorderColor
-    dropdownList.Visible = false
-    dropdownList.ZIndex = 10
-    dropdownList.Parent = dropdownFrame
-    
-    local listCorner = Instance.new("UICorner")
-    listCorner.CornerRadius = UDim.new(0, 4)
-    listCorner.Parent = dropdownList
-    
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Parent = dropdownList
-    
-    local currentValue = defaultValue
-    local isOpen = false
-    
-    -- Store flag reference
-    if flag then
-        Oracle.Flags[flag] = {
-            Value = currentValue,
-            Set = function(value)
-                currentValue = value
-                dropdownButton.Text = value .. " ▼"
-                pcall(callback, value)
-            end
-        }
-    end
-    
-    -- Create option buttons
-    for _, option in pairs(dropdownOptions) do
-        local optionButton = Instance.new("TextButton")
-        optionButton.Name = "Option_" .. option
-        optionButton.Size = UDim2.new(1, 0, 0, 25)
-        optionButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        optionButton.BorderSizePixel = 0
-        optionButton.Text = option
-        optionButton.TextColor3 = theme.TextColor
-        optionButton.TextSize = 14
-        optionButton.Font = Enum.Font.Gotham
-        optionButton.TextXAlignment = Enum.TextXAlignment.Left
-        optionButton.Parent = dropdownList
-        
-        optionButton.MouseEnter:Connect(function()
-            CreateElementTween(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = theme.ElementHover})
-        end)
-        
-        optionButton.MouseLeave:Connect(function()
-            CreateElementTween(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)})
-        end)
-        
-        optionButton.MouseButton1Click:Connect(function()
-            currentValue = option
-            dropdownButton.Text = option .. " ▼"
-            dropdownList.Visible = false
-            isOpen = false
-            
-            if flag then
-                Oracle.Flags[flag].Value = currentValue
-            end
-            
-            pcall(callback, currentValue)
-        end)
-    end
-    
-    -- Dropdown functionality
-    dropdownButton.MouseButton1Click:Connect(function()
-        isOpen = not isOpen
-        dropdownList.Visible = isOpen
-        
-        if isOpen then
-            dropdownFrame.Size = UDim2.new(1, 0, 0, 60 + (#dropdownOptions * 25))
-        else
-            dropdownFrame.Size = UDim2.new(1, 0, 0, 60)
-        end
-    end)
-    
-    return dropdownFrame
-end
-
--- Add UI Element Functions to Section
-local function addElementFunctions(section, theme)
-    theme = getValidTheme(theme)
-    
-    function section.AddButton(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateButton(section, options)
-    end
-    
-    function section.AddToggle(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateToggle(section, options)
-    end
-    
-    function section.AddSlider(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateSlider(section, options)
-    end
-    
-    function section.AddInput(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateInput(section, options)
-    end
-    
-    function section.AddLabel(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateLabel(section, options)
-    end
-    
-    function section.AddDropdown(options)
-        options = options or {}
-        options.Theme = theme
-        return UIElements.CreateDropdown(section, options)
-    end
-end
-
 -- Window Creation
 function Oracle.CreateWindow(options)
     options = options or {}
@@ -931,7 +281,14 @@ function Oracle.CreateWindow(options)
     local windowSize = options.Size or UDim2.new(0, 500, 0, 400)
     local theme = getValidTheme(options.Theme)
     
-    print("Creating window with theme:", theme.Name)
+    local window = {
+        Title = windowTitle,
+        Size = windowSize,
+        Theme = theme,
+        Tabs = {},
+        CurrentTab = nil,
+        Visible = true
+    }
     
     -- Create ScreenGui
     local screenGui = Instance.new("ScreenGui")
@@ -949,25 +306,21 @@ function Oracle.CreateWindow(options)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
     
-    -- Corner Radius
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = mainFrame
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 8)
+    mainCorner.Parent = mainFrame
     
     -- Drop Shadow
-    local shadow = Instance.new("Frame")
+    local shadow = Instance.new("ImageLabel")
     shadow.Name = "Shadow"
-    shadow.Size = UDim2.new(1, 10, 1, 10)
-    shadow.Position = UDim2.new(0, -5, 0, -5)
-    shadow.BackgroundColor3 = theme.Shadow
-    shadow.BackgroundTransparency = 0.7
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = mainFrame.ZIndex - 1
+    shadow.Size = UDim2.new(1, 20, 1, 20)
+    shadow.Position = UDim2.new(0, -10, 0, -10)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+    shadow.ImageColor3 = theme.Shadow
+    shadow.ImageTransparency = 0.8
+    shadow.ZIndex = -1
     shadow.Parent = mainFrame
-    
-    local shadowCorner = Instance.new("UICorner")
-    shadowCorner.CornerRadius = UDim.new(0, 8)
-    shadowCorner.Parent = shadow
     
     -- Top Bar
     local topBar = Instance.new("Frame")
@@ -985,7 +338,7 @@ function Oracle.CreateWindow(options)
     -- Title Label
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Name = "TitleLabel"
-    titleLabel.Size = UDim2.new(1, -80, 1, 0)
+    titleLabel.Size = UDim2.new(1, -100, 1, 0)
     titleLabel.Position = UDim2.new(0, 15, 0, 0)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = windowTitle
@@ -999,7 +352,7 @@ function Oracle.CreateWindow(options)
     local closeButton = Instance.new("TextButton")
     closeButton.Name = "CloseButton"
     closeButton.Size = UDim2.new(0, 30, 0, 30)
-    closeButton.Position = UDim2.new(1, -40, 0, 5)
+    closeButton.Position = UDim2.new(1, -35, 0, 5)
     closeButton.BackgroundColor3 = Color3.fromRGB(255, 95, 95)
     closeButton.BorderSizePixel = 0
     closeButton.Text = "×"
@@ -1021,33 +374,35 @@ function Oracle.CreateWindow(options)
     tabContainer.BorderSizePixel = 0
     tabContainer.Parent = mainFrame
     
+    local tabLayout = Instance.new("UIListLayout")
+    tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    tabLayout.Padding = UDim.new(0, 2)
+    tabLayout.Parent = tabContainer
+    
     -- Content Container
     local contentContainer = Instance.new("Frame")
     contentContainer.Name = "ContentContainer"
     contentContainer.Size = UDim2.new(1, -150, 1, -40)
     contentContainer.Position = UDim2.new(0, 150, 0, 40)
-    contentContainer.BackgroundTransparency = 1
+    contentContainer.BackgroundColor3 = theme.Background
     contentContainer.BorderSizePixel = 0
     contentContainer.Parent = mainFrame
     
-    -- Tab List Layout
-    local tabListLayout = Instance.new("UIListLayout")
-    tabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabListLayout.Padding = UDim.new(0, 2)
-    tabListLayout.Parent = tabContainer
+    -- Store references
+    window.ScreenGui = screenGui
+    window.MainFrame = mainFrame
+    window.TopBar = topBar
+    window.TitleLabel = titleLabel
+    window.CloseButton = closeButton
+    window.TabContainer = tabContainer
+    window.ContentContainer = contentContainer
     
-    -- Window Object
-    local window = {
-        ScreenGui = screenGui,
-        MainFrame = mainFrame,
-        TabContainer = tabContainer,
-        ContentContainer = contentContainer,
-        Tabs = {},
-        CurrentTab = nil,
-        Theme = theme
-    }
+    -- Close functionality
+    closeButton.MouseButton1Click:Connect(function()
+        window:Destroy()
+    end)
     
-    -- Make window draggable
+    -- Dragging functionality
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -1073,88 +428,76 @@ function Oracle.CreateWindow(options)
         end
     end)
     
-    -- Close button functionality
-    closeButton.MouseButton1Click:Connect(function()
-        CreateTween(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 0, 0, 0),
-            Position = UDim2.new(0.5, 0, 0.5, 0)
-        })
-        task.wait(0.3)
-        screenGui:Destroy()
-    end)
-    
-    -- Add Tab Function
-    function window.AddTab(name, icon)
+    -- Window methods
+    function window:CreateTab(tabName)
         local tab = {
-            Name = name,
-            Icon = icon,
+            Name = tabName,
+            Window = self,
             Sections = {},
-            Content = nil,
-            Button = nil
+            Visible = false
         }
         
-        -- Create Tab Button
+        -- Tab Button
         local tabButton = Instance.new("TextButton")
-        tabButton.Name = name .. "Tab"
-        tabButton.Size = UDim2.new(1, -10, 0, 35)
-        tabButton.Position = UDim2.new(0, 5, 0, 0)
+        tabButton.Name = "Tab_" .. tabName
+        tabButton.Size = UDim2.new(1, 0, 0, 35)
         tabButton.BackgroundColor3 = theme.TabBackground
         tabButton.BorderSizePixel = 0
-        tabButton.Text = (icon and icon .. " " or "") .. name
+        tabButton.Text = tabName
         tabButton.TextColor3 = theme.TextColor
         tabButton.TextSize = 14
         tabButton.Font = Enum.Font.Gotham
-        tabButton.Parent = tabContainer
+        tabButton.Parent = self.TabContainer
         
-        local tabCorner = Instance.new("UICorner")
-        tabCorner.CornerRadius = UDim.new(0, 6)
-        tabCorner.Parent = tabButton
-        
-        -- Create Tab Content
+        -- Tab Content
         local tabContent = Instance.new("ScrollingFrame")
-        tabContent.Name = name .. "Content"
-        tabContent.Size = UDim2.new(1, -20, 1, -20)
-        tabContent.Position = UDim2.new(0, 10, 0, 10)
+        tabContent.Name = "TabContent_" .. tabName
+        tabContent.Size = UDim2.new(1, 0, 1, 0)
+        tabContent.Position = UDim2.new(0, 0, 0, 0)
         tabContent.BackgroundTransparency = 1
         tabContent.BorderSizePixel = 0
         tabContent.ScrollBarThickness = 6
         tabContent.ScrollBarImageColor3 = theme.AccentColor
-        tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
         tabContent.Visible = false
-        tabContent.Parent = contentContainer
+        tabContent.Parent = self.ContentContainer
         
         local contentLayout = Instance.new("UIListLayout")
         contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
         contentLayout.Padding = UDim.new(0, 10)
         contentLayout.Parent = tabContent
         
-        -- Auto-resize canvas
-        contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            tabContent.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 20)
-        end)
+        local contentPadding = Instance.new("UIPadding")
+        contentPadding.PaddingTop = UDim.new(0, 10)
+        contentPadding.PaddingBottom = UDim.new(0, 10)
+        contentPadding.PaddingLeft = UDim.new(0, 10)
+        contentPadding.PaddingRight = UDim.new(0, 10)
+        contentPadding.Parent = tabContent
         
-        tab.Content = tabContent
+        -- Store references
         tab.Button = tabButton
+        tab.Content = tabContent
         
-        -- Tab Selection
+        -- Tab switching
         tabButton.MouseButton1Click:Connect(function()
-            window.SelectTab(tab)
+            self:SwitchTab(tab)
         end)
         
-        -- Add Section Function
-        function tab.AddSection(name)
+        -- Tab methods
+        function tab:CreateSection(sectionName)
             local section = {
-                Name = name,
-                Container = nil
+                Name = sectionName,
+                Tab = self,
+                Elements = {}
             }
             
-            -- Create Section Frame
+            -- Section Frame
             local sectionFrame = Instance.new("Frame")
-            sectionFrame.Name = name .. "Section"
-            sectionFrame.Size = UDim2.new(1, 0, 0, 50)
+            sectionFrame.Name = "Section_" .. sectionName
+            sectionFrame.Size = UDim2.new(1, 0, 0, 0)
             sectionFrame.BackgroundColor3 = theme.ElementBackground
             sectionFrame.BorderSizePixel = 0
-            sectionFrame.Parent = tabContent
+            sectionFrame.AutomaticSize = Enum.AutomaticSize.Y
+            sectionFrame.Parent = self.Content
             
             local sectionCorner = Instance.new("UICorner")
             sectionCorner.CornerRadius = UDim.new(0, 6)
@@ -1163,65 +506,127 @@ function Oracle.CreateWindow(options)
             -- Section Title
             local sectionTitle = Instance.new("TextLabel")
             sectionTitle.Name = "SectionTitle"
-            sectionTitle.Size = UDim2.new(1, -20, 0, 25)
-            sectionTitle.Position = UDim2.new(0, 10, 0, 5)
+            sectionTitle.Size = UDim2.new(1, 0, 0, 30)
+            sectionTitle.Position = UDim2.new(0, 0, 0, 0)
             sectionTitle.BackgroundTransparency = 1
-            sectionTitle.Text = name
+            sectionTitle.Text = sectionName
             sectionTitle.TextColor3 = theme.TextColor
             sectionTitle.TextSize = 16
             sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
             sectionTitle.Font = Enum.Font.GothamBold
             sectionTitle.Parent = sectionFrame
             
-            -- Section Content
-            local sectionContent = Instance.new("Frame")
-            sectionContent.Name = "SectionContent"
-            sectionContent.Size = UDim2.new(1, -20, 1, -40)
-            sectionContent.Position = UDim2.new(0, 10, 0, 35)
-            sectionContent.BackgroundTransparency = 1
-            sectionContent.Parent = sectionFrame
+            local titlePadding = Instance.new("UIPadding")
+            titlePadding.PaddingLeft = UDim.new(0, 15)
+            titlePadding.Parent = sectionTitle
             
-            local sectionLayout = Instance.new("UIListLayout")
-            sectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            sectionLayout.Padding = UDim.new(0, 8)
-            sectionLayout.Parent = sectionContent
+            -- Section Container
+            local sectionContainer = Instance.new("Frame")
+            sectionContainer.Name = "SectionContainer"
+            sectionContainer.Size = UDim2.new(1, 0, 0, 0)
+            sectionContainer.Position = UDim2.new(0, 0, 0, 30)
+            sectionContainer.BackgroundTransparency = 1
+            sectionContainer.AutomaticSize = Enum.AutomaticSize.Y
+            sectionContainer.Parent = sectionFrame
             
-            section.Container = sectionContent
+            local containerLayout = Instance.new("UIListLayout")
+            containerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            containerLayout.Padding = UDim.new(0, 5)
+            containerLayout.Parent = sectionContainer
             
-            -- Auto-resize section
-            sectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                sectionFrame.Size = UDim2.new(1, 0, 0, sectionLayout.AbsoluteContentSize.Y + 50)
-            end)
+            local containerPadding = Instance.new("UIPadding")
+            containerPadding.PaddingTop = UDim.new(0, 5)
+            containerPadding.PaddingBottom = UDim.new(0, 10)
+            containerPadding.PaddingLeft = UDim.new(0, 15)
+            containerPadding.PaddingRight = UDim.new(0, 15)
+            containerPadding.Parent = sectionContainer
             
-            table.insert(tab.Sections, section)
+            -- Store references
+            section.Frame = sectionFrame
+            section.Container = sectionContainer
             
-            -- Add element creation functions to section
-            addElementFunctions(section, window.Theme)
+            -- Section methods
+            function section:CreateButton(options)
+                local button = UIElements.CreateButton(self, options)
+                table.insert(self.Elements, button)
+                return button
+            end
             
+            function section:CreateToggle(options)
+                local toggle = UIElements.CreateToggle(self, options)
+                table.insert(self.Elements, toggle)
+                return toggle
+            end
+            
+            function section:CreateSlider(options)
+                local slider = UIElements.CreateSlider(self, options)
+                table.insert(self.Elements, slider)
+                return slider
+            end
+            
+            function section:CreateInput(options)
+                local input = UIElements.CreateInput(self, options)
+                table.insert(self.Elements, input)
+                return input
+            end
+            
+            function section:CreateLabel(options)
+                local label = UIElements.CreateLabel(self, options)
+                table.insert(self.Elements, label)
+                return label
+            end
+            
+            function section:CreateDropdown(options)
+                local dropdown = UIElements.CreateDropdown(self, options)
+                table.insert(self.Elements, dropdown)
+                return dropdown
+            end
+            
+            table.insert(self.Sections, section)
             return section
         end
         
-        table.insert(window.Tabs, tab)
+        table.insert(self.Tabs, tab)
+        
+        -- Auto-select first tab
+        if #self.Tabs == 1 then
+            self:SwitchTab(tab)
+        end
+        
         return tab
     end
     
-    -- Select Tab Function
-    function window.SelectTab(tab)
+    function window:SwitchTab(targetTab)
         -- Hide all tabs
-        for _, t in pairs(window.Tabs) do
-            if t.Content then
-                t.Content.Visible = false
-            end
-            if t.Button then
-                CreateTween(t.Button, TweenInfo.new(0.2), {BackgroundColor3 = window.Theme.TabBackground})
-            end
+        for _, tab in pairs(self.Tabs) do
+            tab.Content.Visible = false
+            tab.Button.BackgroundColor3 = self.Theme.TabBackground
+            tab.Visible = false
         end
         
-        -- Show selected tab
-        if tab and tab.Content and tab.Button then
-            tab.Content.Visible = true
-            CreateTween(tab.Button, TweenInfo.new(0.2), {BackgroundColor3 = window.Theme.TabSelected})
-            window.CurrentTab = tab
+        -- Show target tab
+        targetTab.Content.Visible = true
+        targetTab.Button.BackgroundColor3 = self.Theme.TabSelected
+        targetTab.Visible = true
+        self.CurrentTab = targetTab
+    end
+    
+    function window:SetVisible(visible)
+        self.Visible = visible
+        self.ScreenGui.Enabled = visible
+    end
+    
+    function window:Destroy()
+        if self.ScreenGui then
+            self.ScreenGui:Destroy()
+        end
+        
+        -- Remove from windows table
+        for i, win in pairs(Oracle.Windows) do
+            if win == self then
+                table.remove(Oracle.Windows, i)
+                break
+            end
         end
     end
     
@@ -1229,18 +634,8 @@ function Oracle.CreateWindow(options)
     return window
 end
 
--- Helper function to get keys from table (for debugging)
-local function table_keys(t)
-    local keys = {}
-    for k, _ in pairs(t) do
-        table.insert(keys, k)
-    end
-    return keys
-end
-
-print("Oracle UI Library loaded successfully!")
-print("Version:", Oracle.Version, "Build:", Oracle.Build)
-print("Available themes:", table.concat(table_keys(Oracle.Themes), ", "))
-print("Current theme:", Oracle.CurrentTheme.Name)
+-- Expose UIElements for external use
+Oracle.UIElements = UIElements
 
 return Oracle
+
