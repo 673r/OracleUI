@@ -1,12 +1,46 @@
 --[[
     UIElements.lua - UI Element Components
     Contains all the interactive UI elements for Oracle
+    
+    IMPROVED VERSION:
+    - Fixed syntax errors
+    - Improved error handling
+    - Better theme integration
+    - Enhanced functionality
 ]]
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local UIElements = {}
+
+-- Helper function to get Oracle reference
+local function getOracle()
+    return require(script.Parent)
+end
+
+-- Helper function to get a valid theme
+local function getValidTheme(theme)
+    local Oracle = getOracle()
+    
+    -- If theme is nil, return current theme
+    if not theme then
+        return Oracle.CurrentTheme or Oracle.Themes.Dark
+    end
+    
+    -- If theme is a string, get the theme from Themes table
+    if type(theme) == "string" then
+        return Oracle.Themes[theme] or Oracle.CurrentTheme or Oracle.Themes.Dark
+    end
+    
+    -- If theme is already a table, return it
+    if type(theme) == "table" then
+        return theme
+    end
+    
+    -- Fallback to Dark theme
+    return Oracle.Themes.Dark
+end
 
 -- Utility function for creating tweens
 local function CreateTween(object, info, properties)
@@ -20,12 +54,12 @@ function UIElements.CreateButton(section, options)
     options = options or {}
     local buttonText = options.Text or "Button"
     local callback = options.Callback or function() end
-    local theme = options.Theme
+    local theme = getValidTheme(options.Theme)
     
     local buttonFrame = Instance.new("TextButton")
     buttonFrame.Name = "Button_" .. buttonText
     buttonFrame.Size = UDim2.new(1, 0, 0, 35)
-    buttonFrame.BackgroundColor3 = theme.AccentColor
+    buttonFrame.BackgroundColor3 = options.Color or theme.AccentColor
     buttonFrame.BorderSizePixel = 0
     buttonFrame.Text = buttonText
     buttonFrame.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -37,27 +71,29 @@ function UIElements.CreateButton(section, options)
     buttonCorner.CornerRadius = UDim.new(0, 6)
     buttonCorner.Parent = buttonFrame
     
+    local originalColor = options.Color or theme.AccentColor
+    
     -- Hover effects
     buttonFrame.MouseEnter:Connect(function()
         CreateTween(buttonFrame, TweenInfo.new(0.2), {
             BackgroundColor3 = Color3.new(
-                math.min(theme.AccentColor.R + 0.1, 1),
-                math.min(theme.AccentColor.G + 0.1, 1),
-                math.min(theme.AccentColor.B + 0.1, 1)
+                math.min(originalColor.R + 0.1, 1),
+                math.min(originalColor.G + 0.1, 1),
+                math.min(originalColor.B + 0.1, 1)
             )
         })
     end)
     
     buttonFrame.MouseLeave:Connect(function()
-        CreateTween(buttonFrame, TweenInfo.new(0.2), {BackgroundColor3 = theme.AccentColor})
+        CreateTween(buttonFrame, TweenInfo.new(0.2), {BackgroundColor3 = originalColor})
     end)
     
     -- Click functionality
     buttonFrame.MouseButton1Click:Connect(function()
         CreateTween(buttonFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, -4, 0, 33)})
-        wait(0.1)
+        task.wait(0.1)
         CreateTween(buttonFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, 0, 0, 35)})
-        callback()
+        pcall(callback)
     end)
     
     return buttonFrame
@@ -70,7 +106,7 @@ function UIElements.CreateToggle(section, options)
     local defaultValue = options.Default or false
     local callback = options.Callback or function() end
     local flag = options.Flag
-    local theme = options.Theme
+    local theme = getValidTheme(options.Theme)
     
     local toggleFrame = Instance.new("Frame")
     toggleFrame.Name = "Toggle_" .. toggleText
@@ -126,7 +162,8 @@ function UIElements.CreateToggle(section, options)
     
     -- Store flag reference
     if flag then
-        require(script.Parent).Flags[flag] = {
+        local Oracle = getOracle()
+        Oracle.Flags[flag] = {
             Value = currentValue,
             Set = function(value)
                 currentValue = value
@@ -136,7 +173,7 @@ function UIElements.CreateToggle(section, options)
                 CreateTween(toggleSwitch, TweenInfo.new(0.2), {BackgroundColor3 = newSwitchColor})
                 CreateTween(toggleCircle, TweenInfo.new(0.2), {Position = newCirclePos})
                 
-                callback(value)
+                pcall(callback, value)
             end
         }
     end
@@ -158,10 +195,11 @@ function UIElements.CreateToggle(section, options)
         CreateTween(toggleCircle, TweenInfo.new(0.2), {Position = newCirclePos})
         
         if flag then
-            require(script.Parent).Flags[flag].Value = currentValue
+            local Oracle = getOracle()
+            Oracle.Flags[flag].Value = currentValue
         end
         
-        callback(currentValue)
+        pcall(callback, currentValue)
     end)
     
     -- Hover effects
@@ -173,7 +211,18 @@ function UIElements.CreateToggle(section, options)
         CreateTween(toggleFrame, TweenInfo.new(0.2), {BackgroundColor3 = theme.ElementBackground})
     end)
     
-    return toggleFrame
+    -- Return object with SetValue method
+    local toggleObject = {
+        Frame = toggleFrame,
+        SetValue = function(self, value)
+            local Oracle = getOracle()
+            if Oracle.Flags[flag] then
+                Oracle.Flags[flag].Set(value)
+            end
+        end
+    }
+    
+    return toggleObject
 end
 
 -- Slider Element
@@ -182,10 +231,10 @@ function UIElements.CreateSlider(section, options)
     local sliderText = options.Text or "Slider"
     local minValue = options.Min or 0
     local maxValue = options.Max or 100
-    local defaultValue = options.Default or minValue
+    local defaultValue = math.clamp(options.Default or minValue, minValue, maxValue)
     local callback = options.Callback or function() end
     local flag = options.Flag
-    local theme = options.Theme
+    local theme = getValidTheme(options.Theme)
     
     local sliderFrame = Instance.new("Frame")
     sliderFrame.Name = "Slider_" .. sliderText
@@ -268,7 +317,8 @@ function UIElements.CreateSlider(section, options)
     
     -- Store flag reference
     if flag then
-        require(script.Parent).Flags[flag] = {
+        local Oracle = getOracle()
+        Oracle.Flags[flag] = {
             Value = currentValue,
             Set = function(value)
                 currentValue = math.clamp(value, minValue, maxValue)
@@ -278,7 +328,7 @@ function UIElements.CreateSlider(section, options)
                 CreateTween(sliderHandle, TweenInfo.new(0.2), {Position = UDim2.new(percentage, -8, 0, -5)})
                 
                 valueLabel.Text = tostring(math.floor(currentValue))
-                callback(currentValue)
+                pcall(callback, currentValue)
             end
         }
     end
@@ -299,10 +349,11 @@ function UIElements.CreateSlider(section, options)
         valueLabel.Text = tostring(currentValue)
         
         if flag then
-            require(script.Parent).Flags[flag].Value = currentValue
+            local Oracle = getOracle()
+            Oracle.Flags[flag].Value = currentValue
         end
         
-        callback(currentValue)
+        pcall(callback, currentValue)
     end
     
     sliderTrack.InputBegan:Connect(function(input)
@@ -324,7 +375,18 @@ function UIElements.CreateSlider(section, options)
         end
     end)
     
-    return sliderFrame
+    -- Return object with SetValue method
+    local sliderObject = {
+        Frame = sliderFrame,
+        SetValue = function(self, value)
+            local Oracle = getOracle()
+            if Oracle.Flags[flag] then
+                Oracle.Flags[flag].Set(value)
+            end
+        end
+    }
+    
+    return sliderObject
 end
 
 -- Input Element
@@ -335,7 +397,7 @@ function UIElements.CreateInput(section, options)
     local defaultValue = options.Default or ""
     local callback = options.Callback or function() end
     local flag = options.Flag
-    local theme = options.Theme
+    local theme = getValidTheme(options.Theme)
     
     local inputFrame = Instance.new("Frame")
     inputFrame.Name = "Input_" .. inputText
@@ -386,12 +448,13 @@ function UIElements.CreateInput(section, options)
     
     -- Store flag reference
     if flag then
-        require(script.Parent).Flags[flag] = {
+        local Oracle = getOracle()
+        Oracle.Flags[flag] = {
             Value = currentValue,
             Set = function(value)
                 currentValue = value
                 textBox.Text = value
-                callback(value)
+                pcall(callback, value)
             end
         }
     end
@@ -401,10 +464,11 @@ function UIElements.CreateInput(section, options)
         currentValue = textBox.Text
         
         if flag then
-            require(script.Parent).Flags[flag].Value = currentValue
+            local Oracle = getOracle()
+            Oracle.Flags[flag].Value = currentValue
         end
         
-        callback(currentValue)
+        pcall(callback, currentValue)
     end)
     
     -- Focus effects
@@ -416,14 +480,25 @@ function UIElements.CreateInput(section, options)
         CreateTween(textBox, TweenInfo.new(0.2), {BorderColor3 = theme.BorderColor})
     end)
     
-    return inputFrame
+    -- Return object with SetValue method
+    local inputObject = {
+        Frame = inputFrame,
+        SetValue = function(self, value)
+            local Oracle = getOracle()
+            if Oracle.Flags[flag] then
+                Oracle.Flags[flag].Set(value)
+            end
+        end
+    }
+    
+    return inputObject
 end
 
 -- Label Element
 function UIElements.CreateLabel(section, options)
     options = options or {}
     local labelText = options.Text or "Label"
-    local theme = options.Theme
+    local theme = getValidTheme(options.Theme)
     
     local labelFrame = Instance.new("Frame")
     labelFrame.Name = "Label_" .. labelText
@@ -443,7 +518,16 @@ function UIElements.CreateLabel(section, options)
     label.Font = Enum.Font.Gotham
     label.Parent = labelFrame
     
-    return labelFrame
+    -- Return object with SetText method
+    local labelObject = {
+        Frame = labelFrame,
+        Label = label,
+        SetText = function(self, text)
+            self.Label.Text = text
+        end
+    }
+    
+    return labelObject
 end
 
 -- Dropdown Element
@@ -454,7 +538,7 @@ function UIElements.CreateDropdown(section, options)
     local defaultValue = options.Default or dropdownOptions[1]
     local callback = options.Callback or function() end
     local flag = options.Flag
-    local theme = options.Theme
+    local theme = getValidTheme(options.Theme)
     
     local dropdownFrame = Instance.new("Frame")
     dropdownFrame.Name = "Dropdown_" .. dropdownText
@@ -491,20 +575,24 @@ function UIElements.CreateDropdown(section, options)
     dropdownButton.Text = defaultValue .. " ▼"
     dropdownButton.TextColor3 = theme.TextColor
     dropdownButton.TextSize = 14
-    dropdownButton.Font = Enum.Font.Gotham
     dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+    dropdownButton.Font = Enum.Font.Gotham
     dropdownButton.Parent = dropdownFrame
     
     local buttonCorner = Instance.new("UICorner")
     buttonCorner.CornerRadius = UDim.new(0, 4)
     buttonCorner.Parent = dropdownButton
     
+    local buttonPadding = Instance.new("UIPadding")
+    buttonPadding.PaddingLeft = UDim.new(0, 10)
+    buttonPadding.Parent = dropdownButton
+    
     -- Dropdown List
     local dropdownList = Instance.new("Frame")
     dropdownList.Name = "DropdownList"
     dropdownList.Size = UDim2.new(1, -20, 0, #dropdownOptions * 25)
     dropdownList.Position = UDim2.new(0, 10, 0, 60)
-    dropdownList.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    dropdownList.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     dropdownList.BorderSizePixel = 1
     dropdownList.BorderColor3 = theme.BorderColor
     dropdownList.Visible = false
@@ -524,38 +612,45 @@ function UIElements.CreateDropdown(section, options)
     
     -- Store flag reference
     if flag then
-        require(script.Parent).Flags[flag] = {
+        local Oracle = getOracle()
+        Oracle.Flags[flag] = {
             Value = currentValue,
             Set = function(value)
                 currentValue = value
                 dropdownButton.Text = value .. " ▼"
-                callback(value)
+                pcall(callback, value)
             end
         }
     end
     
     -- Create option buttons
-    for _, option in pairs(dropdownOptions) do
+    for i, option in pairs(dropdownOptions) do
         local optionButton = Instance.new("TextButton")
         optionButton.Name = "Option_" .. option
         optionButton.Size = UDim2.new(1, 0, 0, 25)
-        optionButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        optionButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         optionButton.BorderSizePixel = 0
         optionButton.Text = option
         optionButton.TextColor3 = theme.TextColor
         optionButton.TextSize = 14
-        optionButton.Font = Enum.Font.Gotham
         optionButton.TextXAlignment = Enum.TextXAlignment.Left
+        optionButton.Font = Enum.Font.Gotham
         optionButton.Parent = dropdownList
         
+        local optionPadding = Instance.new("UIPadding")
+        optionPadding.PaddingLeft = UDim.new(0, 10)
+        optionPadding.Parent = optionButton
+        
+        -- Option hover effects
         optionButton.MouseEnter:Connect(function()
             CreateTween(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = theme.ElementHover})
         end)
         
         optionButton.MouseLeave:Connect(function()
-            CreateTween(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)})
+            CreateTween(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)})
         end)
         
+        -- Option click
         optionButton.MouseButton1Click:Connect(function()
             currentValue = option
             dropdownButton.Text = option .. " ▼"
@@ -563,18 +658,21 @@ function UIElements.CreateDropdown(section, options)
             isOpen = false
             
             if flag then
-                require(script.Parent).Flags[flag].Value = currentValue
+                local Oracle = getOracle()
+                Oracle.Flags[flag].Value = currentValue
             end
             
-            callback(currentValue)
+            pcall(callback, currentValue)
         end)
     end
     
-    -- Dropdown functionality
+    -- Dropdown toggle
     dropdownButton.MouseButton1Click:Connect(function()
         isOpen = not isOpen
         dropdownList.Visible = isOpen
+        dropdownButton.Text = currentValue .. (isOpen and " ▲" or " ▼")
         
+        -- Adjust frame size
         if isOpen then
             dropdownFrame.Size = UDim2.new(1, 0, 0, 60 + (#dropdownOptions * 25))
         else
@@ -582,7 +680,72 @@ function UIElements.CreateDropdown(section, options)
         end
     end)
     
-    return dropdownFrame
+    -- Return object with SetValue method
+    local dropdownObject = {
+        Frame = dropdownFrame,
+        SetValue = function(self, value)
+            local Oracle = getOracle()
+            if Oracle.Flags[flag] then
+                Oracle.Flags[flag].Set(value)
+            end
+        end,
+        SetOptions = function(self, newOptions)
+            -- Clear existing options
+            for _, child in pairs(dropdownList:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
+                end
+            end
+            
+            dropdownOptions = newOptions
+            dropdownList.Size = UDim2.new(1, -20, 0, #dropdownOptions * 25)
+            
+            -- Create new option buttons
+            for i, option in pairs(dropdownOptions) do
+                local optionButton = Instance.new("TextButton")
+                optionButton.Name = "Option_" .. option
+                optionButton.Size = UDim2.new(1, 0, 0, 25)
+                optionButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                optionButton.BorderSizePixel = 0
+                optionButton.Text = option
+                optionButton.TextColor3 = theme.TextColor
+                optionButton.TextSize = 14
+                optionButton.TextXAlignment = Enum.TextXAlignment.Left
+                optionButton.Font = Enum.Font.Gotham
+                optionButton.Parent = dropdownList
+                
+                local optionPadding = Instance.new("UIPadding")
+                optionPadding.PaddingLeft = UDim.new(0, 10)
+                optionPadding.Parent = optionButton
+                
+                -- Option hover effects
+                optionButton.MouseEnter:Connect(function()
+                    CreateTween(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = theme.ElementHover})
+                end)
+                
+                optionButton.MouseLeave:Connect(function()
+                    CreateTween(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)})
+                end)
+                
+                -- Option click
+                optionButton.MouseButton1Click:Connect(function()
+                    currentValue = option
+                    dropdownButton.Text = option .. " ▼"
+                    dropdownList.Visible = false
+                    isOpen = false
+                    
+                    if flag then
+                        local Oracle = getOracle()
+                        Oracle.Flags[flag].Value = currentValue
+                    end
+                    
+                    pcall(callback, currentValue)
+                end)
+            end
+        end
+    }
+    
+    return dropdownObject
 end
 
 return UIElements
